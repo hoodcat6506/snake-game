@@ -31,77 +31,111 @@
     delete instance.init;
   }
 
+  /**
+   * start game
+   */
   function start() {
     // start game
+    state = 1;
     initSnake();
     renderSnake();
-    state = 1;
+    initFruit();
+    renderFruit();
     _renderFrame(0);
   }
 
+  /**
+   * restart game
+   */
   function restart() {
     // restart game
     state = 1;
   }
 
+  /**
+   * pause game
+   */
   function pause() {
     // pause game
     state = 2;
   }
 
+  /**
+   * end game
+   */
   function end() {
     // end game
     state = 3;
   }
 
+  /**
+   * initialize snake data
+   */
   function initSnake() {
     snake = {
-      bodyLength: 3,
-      speed:      1,
-      head:       {
-        x:      4, // head x
-        y:      4, // head y
+      initBodyLength: 3,
+      speed:          0.1,
+      head:           {
+        x:      1, // head x
+        y:      5, // head y
         direct: 1, // 00: up, 01: right, 10: down, 11: left
       },
-      tail: {
-        x:      2, // tail x
-        y:      4, // tail y
-        direct: 1, // 00: up, 01: right, 10: down, 11: left
-      },
-      pathQueue: [], // path queue
+      bodyLocation:  [], // max 100(10x10)
+      anglePosition: [], // path queue
     };
+    for(var i = 0; i < snake.initBodyLength - 1; i++) {
+      snake.head.x++;
+      snake.bodyLocation.push(Object.assign({}, snake.head));
+    }
+    snake.head.x++;
   }
 
+  /**
+   * rendering snake's body on canvas
+   */
   function renderSnake() {
-    // render snake
-    var path = snake.head;
-    for(var i = 0; i < snake.pathQueue.length; i++) {
-      _drawLine(path, snake.pathQueue[i]);
-      path = snake.pathQueue[i];
+    // var path = snake.head;
+    var path = snake.bodyLocation[0]; // tail
+
+    for (var i = 0; i < snake.anglePosition.length; i++) {
+      _drawLine(path, snake.anglePosition[i]);
+      path = snake.anglePosition[i];
     }
 
-    _drawLine(path, snake.tail);
+    _drawLine(path, snake.head);
   }
 
+  /**
+   * initialize fruit data
+   */
+  function initFruit() {
+    var fruitLocation = null;
+    var flag = null;
+    do{
+      fruitLocation = ~~(Math.random() * 10000) % 100;
+      flag = snake.bodyLocation.indexOf(fruitLocation);
+    } while(flag !== -1);
+
+    fruit.x = ~~(fruitLocation / 10);
+    fruit.y = ~~(fruitLocation % 10);
+  }
+
+  /**
+   * rendering fruit on canvas
+   */
+  function renderFruit() {
+    context.playZone.save();
+    context.playZone.strokeStyle = '#ffdddd';
+    context.playZone.fillStyle = '#ff0000';
+    _drawDot(fruit);
+    context.playZone.restore();
+  }
+
+  /**
+   * snake body grow up
+   */
   function growUp() {
-    snake.bodyLength++;
-    snake.pathQueue.push(Object.assign({}, snake.tail));
-    switch(snake.tail.direct) {
-      case 0:
-        snake.tail.y -= 1;
-        break;
-      case 1:
-        snake.tail.x += 1;
-        break;
-      case 2:
-        snake.tail.y += 1;
-        break;
-      case 3:
-        snake.tail.x -= 1;
-        break;
-      default:
-        break;
-    }
+    // something
   }
 
   /**
@@ -128,85 +162,51 @@
   function _render() {
     var img = new Image();
     img.src = './res/img/background.png';
-    img.addEventListener('load', (event) => context.background.drawImage(this, 0, 0));
+    img.addEventListener('load', (event) => context.background.drawImage(event.target, 0, 0));
   }
 
   /**
    * loop
-   * 
+   *
    * @param {DOMHighResTimeStamp} timestamp
    */
   function _renderFrame(timestamp) {
-    if(state === 1) {
+    if (state === 1) {
       timeInfo.prevFrame = timeInfo.prevFrame || timestamp;
 
       if (timestamp - timeInfo.prevFrame >= 1000 * snake.speed) {
         _clearPlayZone();
-        // move tail
-        if(snake.pathQueue.length) {
-          var path = snake.pathQueue[0];
-          if(path.x === snake.tail.x) {
-            snake.tail.direct = (path.y < snake.tail.y) ? 0 : 2;
-          } else {
-            snake.tail.direct = (path.x < snake.tail.x) ? 3 : 1;
-          }
-        } else {
-          snake.tail.direct = snake.head.direct;
-        }
 
-        // move tail
-        switch(snake.tail.direct) {
-          case 0:
-            snake.tail.y -= 1;
-            break;
-          case 1:
-            snake.tail.x += 1;
-            break;
-          case 2:
-            snake.tail.y += 1;
-            break;
-          case 3:
-            snake.tail.x -= 1;
-            break;
-          default:
-            break;
-        }
-
+        snake.bodyLocation.push(Object.assign({}, snake.head)); // add head
         // move head
-        switch(snake.head.direct) {
-          case 0:
-            snake.head.y -= 1;
-            break;
-          case 1:
-            snake.head.x += 1;
-            break;
-          case 2:
-            snake.head.y += 1;
-            break;
-          case 3:
-            snake.head.x -= 1;
-            break;
-          default:
-            break;
-        }
+        var zeroBit = (snake.head.direct & 1);
+        var oneBit = ((snake.head.direct >>> 1) & 1);
+        var incr = (zeroBit ^ oneBit) ? 1 : -1;
+        (zeroBit ? snake.head.x += incr : snake.head.y += incr);
 
-        // TODO: check eat fruit
+        snake.bodyLocation.shift(); // remove tail
 
         // check path
-        if(snake.pathQueue.length) {
-          if(snake.pathQueue[0].x === snake.tail.x && snake.pathQueue[0].y === snake.tail.y) {
-            snake.pathQueue.shift();
-            console.log(path);
+        if (snake.anglePosition.length) {
+          if (snake.anglePosition[0].x === snake.bodyLocation[0].x && snake.anglePosition[0].y === snake.bodyLocation[0].y) {
+            snake.anglePosition.shift();
+            console.log(Object.assign({}, snake.bodyLocation));
           }
+        }
+
+        // check if eat fruit
+        if (snake.head.x === fruit.x && snake.head.y === fruit.y) {
+          initFruit();
         }
 
         timeInfo.prevFrame = timestamp;
         renderSnake();
+        renderFruit();
         isLock = false;
       }
     }
 
-    if(state === 3) {
+    if (state === 3) {
       window.cancelAnimationFrame(_renderFrame);
       timeInfo.end = timestamp;
       console.log(timeInfo.end - timeInfo.start);
@@ -215,8 +215,20 @@
     }
   }
 
+  function _isGameOver() {
+    var headLocation = (snake.head.x * 10) + snake.head.y;
+    var isCrush = snake.head.x > 10 || snake.head.x < 0 || snake.head.y > 10 || snake.head.y < 0;
+    isCrush = isCrush || snake.bodyLocation.slice(0, snake.bodyLocation).indexOf(headLocation) === -1;
+
+    return isCrush;
+  }
+
+  function _drawDot(path) {
+    context.playZone.fillRect(path.x * 30, path.y * 30, 30, 30);
+  }
+
   /**
-   * draw snake body by pathQueue
+   * draw snake body by anglePosition
    *
    * @param {object} path1
    * @param {object} path2
@@ -229,10 +241,6 @@
       var [minXPoint, maxXPoint] = (path1.x < path2.x) ? [path1, path2] : [path2, path1];
       context.playZone.fillRect(minXPoint.x * 30, minXPoint.y * 30, (maxXPoint.x - minXPoint.x + 1) * 30, 30);
     }
-  }
-
-  function _renderFruit() {
-    // reder Fruit
   }
 
   /**
@@ -251,19 +259,20 @@
     // is playing
     if (!isLock && state === 1) {
       var direct = [38, 39, 40, 37].indexOf(event.keyCode);
-      if(direct >= 0) {
+      if (direct >= 0) {
         if ((direct & 1) !== (snake.head.direct & 1)) {
           isLock = true;
           snake.head.direct = direct;
-          snake.pathQueue.push(Object.assign({}, snake.head));
+          snake.anglePosition.push(Object.assign({}, snake.head));
         }
       }
     }
 
-    ({
+    var handler = ({
       13: start,
       27: end
-    })[event.keyCode]();
+    })[event.keyCode];
+    handler && handler();
   }
 
   return exports;
