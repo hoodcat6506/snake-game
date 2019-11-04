@@ -7,6 +7,7 @@
     end:         end,
     initSnake:   initSnake,
     renderSnake: renderSnake,
+    addScore:    addScore,
   };
 
   var canvas = {};
@@ -21,6 +22,7 @@
   var fruit = {};
   var state = 0; // 0: ready, 1: play, 2: pause, 3: end
   var score = 0;
+  var board = (new Array(100)).fill(0).map((number, index) => index);
 
   function init() {
     state = 0;
@@ -65,6 +67,7 @@
    */
   function end() {
     // end game
+    alert('game over');
     state = 3;
   }
 
@@ -74,7 +77,7 @@
   function initSnake() {
     snake = {
       initBodyLength: 3,
-      speed:          0.1,
+      speed:          1,
       head:           {
         x:      1, // head x
         y:      5, // head y
@@ -110,12 +113,16 @@
    */
   function initFruit() {
     var fruitLocation = null;
-    var flag = null;
-    do{
-      fruitLocation = ~~(Math.random() * 10000) % 100;
-      flag = snake.bodyLocation.indexOf(fruitLocation);
-    } while(flag !== -1);
+    var bodyLocation = snake.bodyLocation.map(body => (body.x * 10) + body.y);
+    bodyLocation.push((snake.head.x * 10) + snake.head.y);
+    var possible = board.filter(location => bodyLocation.indexOf(location) === -1);
 
+    if (!possible.length) {
+      end();
+      return;
+    }
+
+    fruitLocation = possible[getRandomInt(0, possible.length)];
     fruit.x = ~~(fruitLocation / 10);
     fruit.y = ~~(fruitLocation % 10);
   }
@@ -132,10 +139,29 @@
   }
 
   /**
-   * snake body grow up
+   * add score
    */
-  function growUp() {
-    // something
+  function addScore() {
+    score += 10;
+  }
+
+  /**
+   * speed up
+   */
+  function speedUp() {
+    snake.speed = Math.max(0.1, snake.speed - 0.1);
+  }
+
+  /**
+   * get random integer between min and max
+   *
+   * @param {number} min
+   * @param {number} max
+   */
+  function getRandomInt(min, max) {
+    min = Math.ceil(min);
+    max = Math.floor(max);
+    return Math.floor(Math.random() * (max - min)) + min; // The maximum is exclusive and the minimum is inclusive
   }
 
   /**
@@ -184,19 +210,25 @@
         var incr = (zeroBit ^ oneBit) ? 1 : -1;
         (zeroBit ? snake.head.x += incr : snake.head.y += incr);
 
-        snake.bodyLocation.shift(); // remove tail
-
         // check path
         if (snake.anglePosition.length) {
           if (snake.anglePosition[0].x === snake.bodyLocation[0].x && snake.anglePosition[0].y === snake.bodyLocation[0].y) {
             snake.anglePosition.shift();
-            console.log(Object.assign({}, snake.bodyLocation));
           }
+        }
+
+        if(_isGameOver()) {
+          end();
+          return;
         }
 
         // check if eat fruit
         if (snake.head.x === fruit.x && snake.head.y === fruit.y) {
+          addScore();
+          speedUp();
           initFruit();
+        } else {
+          snake.bodyLocation.shift(); // remove tail
         }
 
         timeInfo.prevFrame = timestamp;
@@ -209,7 +241,6 @@
     if (state === 3) {
       window.cancelAnimationFrame(_renderFrame);
       timeInfo.end = timestamp;
-      console.log(timeInfo.end - timeInfo.start);
     } else {
       window.requestAnimationFrame(_renderFrame);
     }
@@ -217,8 +248,8 @@
 
   function _isGameOver() {
     var headLocation = (snake.head.x * 10) + snake.head.y;
-    var isCrush = snake.head.x > 10 || snake.head.x < 0 || snake.head.y > 10 || snake.head.y < 0;
-    isCrush = isCrush || snake.bodyLocation.slice(0, snake.bodyLocation).indexOf(headLocation) === -1;
+    var isCrush = snake.head.x > 9 || snake.head.x < 0 || snake.head.y > 9 || snake.head.y < 0;
+    isCrush = isCrush || snake.bodyLocation.map(body => (body.x * 10) + body.y).indexOf(headLocation) !== -1;
 
     return isCrush;
   }
