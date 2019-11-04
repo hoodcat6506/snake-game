@@ -220,7 +220,7 @@ module.exports = {
         "multiline-ternary": "off",
         "new-cap": "error",
         "new-parens": "error",
-        "newline-per-chained-call": "error",
+        "newline-per-chained-call": "off",
         "no-array-constructor": "error",
         "no-bitwise": "off",
         "no-continue": "error",
