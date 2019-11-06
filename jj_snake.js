@@ -68,7 +68,10 @@
    */
   function end() {
     // end game
-    alert('game over');
+    alert(`
+    Game Over
+    your Score: ${score}
+    `);
     state = 3;
   }
 
@@ -336,7 +339,7 @@
    * @param {TouchEvent} event
    */
   function _touchendHandler(event) {
-    if (!touchStartPoint && !isLock && state === 1) {
+    if (touchStartPoint && !isLock && state === 1) {
       var direct = null;
       var touchEndPoint = [
         event.changedTouches[0].clientX - canvas.playZone.centerPoint.x,
