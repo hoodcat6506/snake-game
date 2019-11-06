@@ -23,6 +23,7 @@
   var state = 0; // 0: ready, 1: play, 2: pause, 3: end
   var score = 0;
   var board = (new Array(100)).fill(0).map((number, index) => index);
+  var touchStartPoint = null;
 
   function init() {
     state = 0;
@@ -149,7 +150,7 @@
    * speed up
    */
   function speedUp() {
-    snake.speed = Math.max(0.1, snake.speed - 0.1);
+    snake.speed = Math.max(0.1, snake.speed - 0.05);
   }
 
   /**
@@ -170,6 +171,10 @@
   function _cache() {
     canvas.background = document.querySelector('canvas.-fd-background');
     canvas.playZone = document.querySelector('canvas.-fd-play-zone');
+    canvas.playZone.centerPoint = {
+      x: ~~(canvas.playZone.width / 2),
+      y: ~~(canvas.playZone.height / 2)
+    };
 
     context.background = canvas.background.getContext('2d');
     context.playZone = canvas.playZone.getContext('2d');
@@ -180,6 +185,8 @@
    */
   function _bindEvent() {
     window.addEventListener('keydown', _keydownHandler);
+    canvas.playZone.addEventListener('touchstart', _touchstartHandler);
+    canvas.playZone.addEventListener('touchend', _touchendHandler);
   }
 
   /**
@@ -200,7 +207,8 @@
     if (state === 1) {
       timeInfo.prevFrame = timeInfo.prevFrame || timestamp;
 
-      if (timestamp - timeInfo.prevFrame >= 1000 * snake.speed) {
+      if (timestamp - timeInfo.prevFrame >= 500 * snake.speed) {
+        timeInfo.prevFrame = timestamp;
         _clearPlayZone();
 
         snake.bodyLocation.push(Object.assign({}, snake.head)); // add head
@@ -231,7 +239,6 @@
           snake.bodyLocation.shift(); // remove tail
         }
 
-        timeInfo.prevFrame = timestamp;
         renderSnake();
         renderFruit();
         isLock = false;
@@ -304,6 +311,56 @@
       27: end
     })[event.keyCode];
     handler && handler();
+  }
+
+  /**
+   * touch start handler
+   *
+   * @param {TouchEvent} event
+   */
+  function _touchstartHandler(event) {
+    // touch start;
+    if (state === 1) {
+      touchStartPoint = [
+        event.touches[0].clientX - canvas.playZone.centerPoint.x,
+        canvas.playZone.centerPoint.y - event.touches[0].clientY
+      ];
+    } else {
+      start();
+    }
+  }
+
+  /**
+   * touch end handler
+   *
+   * @param {TouchEvent} event
+   */
+  function _touchendHandler(event) {
+    if (!touchStartPoint && !isLock && state === 1) {
+      var direct = null;
+      var touchEndPoint = [
+        event.changedTouches[0].clientX - canvas.playZone.centerPoint.x,
+        canvas.playZone.centerPoint.y - event.changedTouches[0].clientY
+      ];
+      var angle = Math.atan2(touchEndPoint[1] - touchStartPoint[1], touchEndPoint[0] - touchStartPoint[0]) * 180 / Math.PI;
+      if(angle >= -20 && angle <= 20) {
+        direct = 1;
+      } else if (angle >= 70 && angle <= 110) {
+        direct = 0;
+      } else if (angle >= -110 && angle <= -70) {
+        direct = 2;
+      } else if ((angle > -180 && angle <= -160) || (angle >= 160 && angle <= 180)) {
+        direct = 3;
+      }
+      if (direct >= 0) {
+        if ((direct & 1) !== (snake.head.direct & 1)) {
+          isLock = true;
+          snake.head.direct = direct;
+          snake.anglePosition.push(Object.assign({}, snake.head));
+        }
+      }
+      touchStartPoint = null;
+    }
   }
 
   return exports;
